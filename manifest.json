@@ -2,6 +2,7 @@
   "name": "Tasbih Digital",
   "short_name": "Tasbih",
   "description": "Tasbih digital 999 sistem putaran 100, getar dan suara",
+  "id": "/tasbihdigital/",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0A1912",
@@ -10,7 +11,8 @@
     {
       "src": "icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "icon-512.png",
