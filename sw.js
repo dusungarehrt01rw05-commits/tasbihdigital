@@ -1,5 +1,5 @@
-const CACHE_NAME = 'tasbih-pwa-v1';
-const assets = [
+const CACHE_NAME = 'tasbih-pwa-v2';
+const ASSETS = [
   './',
   './index.html',
   './manifest.json',
@@ -7,18 +7,21 @@ const assets = [
   './icon-512.png'
 ];
 
-// Menginstal Service Worker dan menyimpan aset ke cache
-self.addEventListener('install', (e) => {
-  e.waitUntil(
+// 1. Install Event - Cache file inti
+self.addEventListener('install', (event) => {
+  event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(assets);
+      // Menggunakan Promise.allSettled agar jika 1 gambar missing, SW tetap terinstall
+      return Promise.all(
+        ASSETS.map((url) => cache.add(url).catch((err) => console.warn(`Gagal cache: ${url}`, err)))
+      );
     }).then(() => self.skipWaiting())
   );
 });
 
-// Mengaktifkan Service Worker dan membersihkan cache lama
-self.addEventListener('activate', (e) => {
-  e.waitUntil(
+// 2. Activate Event - Hapus cache lama
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
         keys.map((key) => {
@@ -31,11 +34,25 @@ self.addEventListener('activate', (e) => {
   );
 });
 
-// Strategi Fetch: Mengambil dari jaringan dulu, jika gagal/offline ambil dari cache
-self.addEventListener('fetch', (e) => {
-  e.respondWith(
-    fetch(e.request).catch(() => {
-      return caches.match(e.request);
+// 3. Fetch Event - Stale-While-Revalidate / Cache-First untuk performa HP
+self.addEventListener('fetch', (event) => {
+  // Hanya proses request GET
+  if (event.request.method !== 'GET') return;
+
+  event.respondWith(
+    caches.match(event.request).then((cachedResponse) => {
+      if (cachedResponse) {
+        // Ambil dari cache dulu, lalu perbarui di background
+        fetch(event.request).then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkResponse));
+          }
+        }).catch(() => {/* Abaikan error jaringan saat offline */});
+        
+        return cachedResponse;
+      }
+
+      return fetch(event.request);
     })
   );
 });
